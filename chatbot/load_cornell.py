@@ -1,82 +1,83 @@
+import os
+import ast
+
 """
-Load the cornell movie dialog corpus
-For more info on dataset's structure, check readme file inside cornell
+Load the cornell movie dialog corpus.
+Available from here:
 http://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html
 """
-import re
 
-class LoadCornell:
+class CornellData:
     """
-    Load cornell movie conversations in the correct order
+    Loads the Cornell dataset
     """
-    def __init__(self, directory):
+    def __init__(self, dirName):
         """
-        :param directory: dataset directory
+        Args:
+            dirName (string): directory where to load the corpus
         """
-        # dict with the lines id as key, line utterance as value
         self.lines = {}
-        # list of dicts, each one holds related lines
-        self.conversations= []
+        self.conversations = []
 
-        line_fields = ['lineID','characterID', 'movieID', 'character_name', 'text']
-        conv_fields = ['character1ID', 'character2ID', 'movieID', 'linesID']
+        MOVIE_LINES_FIELDS = ["lineID","characterID","movieID","character","text"]
+        MOVIE_CONVERSATIONS_FIELDS = ["character1ID","character2ID","movieID","utteranceIDs"]
 
-        self.lines = self.load_lines(directory+"movie_lines.txt", line_fields)
-        self.conversations = self.load_conversations(directory+"movie_conversations.txt", conv_fields)
+        self.lines = self.loadLines(os.path.join(dirName, "movie_lines.txt"), MOVIE_LINES_FIELDS)
+        self.conversations = self.loadConversations(os.path.join(dirName, "movie_conversations.txt"), MOVIE_CONVERSATIONS_FIELDS)
 
-    def load_lines(self, filename, fields):
+    def loadLines(self, fileName, fields):
         """
-        Populate lines dictionary
-        :param filename: lines file
-        :param fields: list of fields names
-        :return: Dict of line id with each utterance
+        Args:
+            fileName (str): file to load
+            field (set<str>): fields to extract
+        Return:
+            dict<dict<str>>: the extracted fields for each line
         """
-
         lines = {}
-        with open(filename, 'r') as f:
-            for each_line in f:
-                line_vals = each_line.split('+++$+++')
-                line_vals[0] = line_vals[0][:-1]
-                line_meta = {}
-                for i in range(len(line_vals)):
-                    line_meta[fields[i]] = line_vals[i]
-                #print line_meta['lineID'] + " " + line_meta['text']
-                lines[line_meta['lineID']] = line_meta['text']
-                #print lines[line_meta['lineID']]
 
-        #for debugging
-        #for key, value in lines.iteritems():
-        #   print key + value
+        with open(fileName, 'r') as f:
+            for line in f:
+                values = line.split(" +++$+++ ")
+
+                # Extract fields
+                lineObj = {}
+                for i, field in enumerate(fields):
+                    lineObj[field] = values[i]
+
+                lines[lineObj['lineID']] = lineObj
+
         return lines
 
-    def load_conversations(self, filename, fields):
+    def loadConversations(self, fileName, fields):
         """
-        Get ordered conversation lines
-        :param filename: conv file
-        :param fields: list of fields names
-        :return: list of lists, contains related coversation lines
+        Args:
+            fileName (str): file to load
+            field (set<str>): fields to extract
+        Return:
+            dict<dict<str>>: the extracted fields for each line
         """
         conversations = []
-        with open(filename, 'r') as f:
-            for each_line in f:
-                line_vals = each_line.split('+++$+++')
-                conv_meta = {}
-                for i in range(len(line_vals)):
-                    conv_meta[fields[i]] = line_vals[i]
 
-                conv_lines = (re.findall(r"'(.*?)'", conv_meta['linesID'], re.DOTALL))
-                #print conv_lines
-                one_conv = []
-                for i in range(len(conv_lines)):
-                    one_conv.append(self.lines[conv_lines[i]])
-                conversations.append(one_conv)
+        with open(fileName, 'r') as f:
+            for line in f:
+                values = line.split(" +++$+++ ")
 
-        #for debugging
-        #for i in range(30):
-        #   for j in range(len(conversations[i])):
-        #       print conversations[i][j]
+                # Extract fields
+                convObj = {}
+                for i, field in enumerate(fields):
+                    convObj[field] = values[i]
+
+                # Convert string to list (convObj["utteranceIDs"] == "['L598485', 'L598486', ...]")
+                lineIds = ast.literal_eval(convObj["utteranceIDs"])
+
+                # Reassemble lines
+                convObj["lines"] = []
+                for lineId in lineIds:
+                    convObj["lines"].append(self.lines[lineId])
+
+                conversations.append(convObj)
 
         return conversations
 
-    def get_conversations(self):
+    def getConversations(self):
         return self.conversations
